@@ -1,0 +1,18 @@
+body { font-family: Arial, sans-serif; margin: 0; padding: 1rem}
+h1   { font-size: 2.4rem; margin-bottom: 1rem}
+
+table{ border-collapse:collapse; margin-top:16px}
+
+.form-row { display: flex; align-items: center; margin-bottom: 8px; text-wrap: nowrap}
+.form-row label {margin-right: 8px;  min-width: 15rem;}
+.form-button { padding:4px 12px; margin-top:8px; cursor:pointer}
+
+.grid-cell { width: 18px; height: 18px; border: 1px solid #ccc}
+.grid-select {cursor: pointer}
+.trash-cell { background:#34c759; background-repeat: no-repeat; background-position: center; background-image: url('/trash.svg')} 
+.robot-cell { background:#ffe6aa; background-repeat: no-repeat; background-position: center; background-image: url('/robot.svg')}  
+.garbage-cell { background:#ff6961; background-repeat: no-repeat; background-position: center; background-image: url('/garbage.svg')}  
+.unknown-cell { background: #aaa}
+.locked-cell { border: 2px solid #88f}
+
+.grid-button { margin-right: 1.5rem;}

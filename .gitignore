@@ -1,0 +1,5 @@
+/robotclean/robotbackend/__pycache__
+/robotclean/robotbackend/migrations
+/robotclean/robotclean/__pycache__
+robotclean/robotclean/__init__.py
+robotclean/robotbackend/__init__.py
