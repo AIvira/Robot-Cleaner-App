@@ -7,7 +7,7 @@ export interface SetupPayload {
   j: number;
 }
 /* 0: Empty, U: unknown, R: Robot, D: Disposal (garbage) , xL : x Locked in robot view */
-export type Cell = "0" | "U" | "R" | "D" | "Z"  | "RL" | "DL" | "UL";
+export type Cell = "0" | "U" | "R" | "D" | "Z"  | "RL" | "RD" | "RDL" | "DL" | "UL";
 export type Grid = Cell[][];
 export interface NextTurnResponse {
   grid: Grid;
@@ -15,6 +15,7 @@ export interface NextTurnResponse {
   cleaned: boolean;
   num_it: number;
   num_trash: number;
+  num_trash_returning: number;
 }
 
 /* POST /api/setup/ ------------------------------------------------------ */

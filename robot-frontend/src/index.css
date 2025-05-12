@@ -9,10 +9,11 @@ table{ border-collapse:collapse; margin-top:16px}
 
 .grid-cell { width: 18px; height: 18px; border: 1px solid #ccc}
 .grid-select {cursor: pointer}
-.trash-cell { background:#34c759; background-repeat: no-repeat; background-position: center; background-image: url('/trash.svg')} 
-.robot-cell { background:#ffe6aa; background-repeat: no-repeat; background-position: center; background-image: url('/robot.svg')}  
-.garbage-cell { background:#ff6961; background-repeat: no-repeat; background-position: center; background-image: url('/garbage.svg')}  
+.trash-cell { background:#34c759; background-repeat: no-repeat; background-position: center; background-image: url('/trash.svg')}
+.robot-cell { background:#ffe6aa; background-repeat: no-repeat; background-position: center; background-image: url('/robot.svg')}
+.garbage-cell { background:#ff6961; background-repeat: no-repeat; background-position: center; background-image: url('/garbage.svg')}
 .unknown-cell { background: #aaa}
 .locked-cell { border: 2px solid #88f}
 
 .grid-button { margin-right: 1.5rem;}
+.score {margin-bottom: 1rem;}

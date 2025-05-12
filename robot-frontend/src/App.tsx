@@ -13,6 +13,7 @@ export default function App() {
 
   const [numberIt, setnumberIt] = useState<number>(0);
   const [numberTrash, setnumberTrash] = useState<number>(0);
+  const [numberTrashReturning, setnumberTrashReturning] = useState<number>(0);
   /* ← 1.  callback from SetupForm  */
   const handleSuccess = (g: Grid) => setGrid(g);
 
@@ -26,12 +27,13 @@ export default function App() {
     setnumberTrash(0);
   };
   const next = async () => {
-    const { grid, discovered, cleaned, num_it, num_trash } = await nextTurn();
+    const { grid, discovered, cleaned, num_it, num_trash, num_trash_returning } = await nextTurn();
     setGrid(grid);
     setDiscovered(discovered);
     setCleaned(cleaned);
     setnumberIt(num_it);
     setnumberTrash(num_trash);
+    setnumberTrashReturning(num_trash_returning);
   };
 
   const robot = async () => setGrid(await robotView());
@@ -81,7 +83,8 @@ export default function App() {
             </label>
           </div>
           <p>Nombre de tours: {numberIt}</p>
-          <p style={{ marginBottom: 8 }}>Nombre de dechets: {numberTrash}</p>
+          <p>Nombre de déchets: {numberTrash}</p>
+          <p className="score" style={{ marginBottom: 8 }}>Nombre de déchets transportés: {numberTrashReturning}</p>
           <GridTable grid={grid} />
           {/* finish messages */}
           {discovered && <p style={{ color: "green" }}>Toute la grille a été découverte par les robots !</p>}
