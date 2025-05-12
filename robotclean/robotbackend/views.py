@@ -16,6 +16,9 @@ ROBOT_TARGETS = {}
 ROBOT_VIEWING = False
 TRASH = (GRID_SIZE // 2, GRID_SIZE // 2)
 
+NUM_TURN = 0
+NUM_TRASH_COLLECTED = 0
+
 # CODE FOR GRID CELLS :
 # ------------------------------------------------------------
 # 0 => EMPTY
@@ -46,7 +49,7 @@ def get_free_pos():
 class SetupView(APIView):
     # Initialize grid
     def post(self, request):
-        global GRID, ROBOT_GRID, ROBOT_TARGETS, TRASH
+        global GRID, ROBOT_GRID, ROBOT_TARGETS, TRASH, NUM_TURN, NUM_TRASH_COLLECTED, ROBOT_VIEWING
 
         # Get 3 info to start number of robots, number of trashes to collect 
         # and trash position (i,j)
@@ -63,7 +66,10 @@ class SetupView(APIView):
         TRASH = (i, j)
         GRID[i][j] = "Z" # trash to get rid oj junk
         ROBOT_GRID[i][j] = "Z" # robots know where the trash is
-        ROBOT_TARGETS = {} 
+        ROBOT_TARGETS = {}
+        NUM_TURN = 0
+        NUM_TRASH_COLLECTED = 0
+        ROBOT_VIEWING = False
 
         for _ in range(nr):
             x, y = get_free_pos(); GRID[x][y] = "R" # a robot with no load
@@ -92,21 +98,25 @@ class RobotView(APIView):
 class NextView(APIView):
     # Return the grid after one MOVE
     def get(self, request):
+        global NUM_TURN
+        global NUM_TRASH_COLLECTED
         global ROBOT_VIEWING
-        self.moveNext()
+        if self.moveNext():
+            NUM_TURN+=1
         if ROBOT_VIEWING:
-            return Response({"grid": ROBOT_GRID, "discovered": self.mapDiscovered(), "cleaned": self.mapCleaned()})
+            return Response({"grid": ROBOT_GRID, "discovered": self.mapDiscovered(), "cleaned": self.mapCleaned(), "num_it":NUM_TURN, "num_trash":NUM_TRASH_COLLECTED})
         else:
-            return Response({"grid": GRID, "discovered": self.mapDiscovered(), "cleaned": self.mapCleaned()})
+            return Response({"grid": GRID, "discovered": self.mapDiscovered(), "cleaned": self.mapCleaned(), "num_it":NUM_TURN, "num_trash":NUM_TRASH_COLLECTED})
     
     def moveNext(self):
         if self.mapDiscovered() and self.mapCleaned(): # game end
-            return
+            return False
         self.updateRobotView()
         self.lockCloseTarget()
         self.exploreUnknown()
         self.move()
         self.updateRobotView() # after move
+        return True
     
     def updateRobotView(self):
         for i in range(GRID_SIZE):
@@ -210,7 +220,7 @@ class NextView(APIView):
 
     def move(self):
         # work on a grid copy
-        global GRID
+        global GRID, NUM_TRASH_COLLECTED
         global ROBOT_TARGETS
         new_grid = copy.deepcopy(GRID)
         new_targets = {} 
@@ -231,7 +241,8 @@ class NextView(APIView):
             # destination ?
             if GRID[d_i][d_j] == "Z" and GRID[step_i][step_j] == "Z" and (step_i == r_i or step_j == r_j):
                 # heading to trash, reach the trash, get rid of content
-                new_grid[r_i][r_j] = "R" 
+                new_grid[r_i][r_j] = "R"
+                NUM_TRASH_COLLECTED += 1
                 # to not add target, we have done yet
                 print("--> Robot drops junk to trash and is now available (", r_i, ",", r_j, ")")
                 continue

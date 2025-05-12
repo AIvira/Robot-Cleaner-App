@@ -13,6 +13,8 @@ export interface NextTurnResponse {
   grid: Grid;
   discovered: boolean;
   cleaned: boolean;
+  num_it: number;
+  num_trash: number;
 }
 
 /* POST /api/setup/ ------------------------------------------------------ */

@@ -10,6 +10,9 @@ export default function App() {
   const [discovered, setDiscovered] = useState(false);
   const [cleaned, setCleaned] = useState(false);
   const [auto, setAuto] = useState(false);
+
+  const [numberIt, setnumberIt] = useState<number>(0);
+  const [numberTrash, setnumberTrash] = useState<number>(0);
   /* ← 1.  callback from SetupForm  */
   const handleSuccess = (g: Grid) => setGrid(g);
 
@@ -19,12 +22,16 @@ export default function App() {
     setAuto(false);
     setDiscovered(false);
     setCleaned(false);
+    setnumberIt(0);
+    setnumberTrash(0);
   };
   const next = async () => {
-    const { grid, discovered, cleaned } = await nextTurn();
+    const { grid, discovered, cleaned, num_it, num_trash } = await nextTurn();
     setGrid(grid);
     setDiscovered(discovered);
     setCleaned(cleaned);
+    setnumberIt(num_it);
+    setnumberTrash(num_trash);
   };
 
   const robot = async () => setGrid(await robotView());
@@ -52,7 +59,7 @@ export default function App() {
       {/* ---- GRID ---- */}
       {grid !== null && (
         <>
-          <div style={{ marginBottom: 8 }}>
+          <div style={{ marginBottom: 4 }}>
             <button onClick={refresh} className="grid-button">
               Vue grille
             </button>
@@ -73,7 +80,8 @@ export default function App() {
               Mode automatique
             </label>
           </div>
-
+          <p>Nombre de tours: {numberIt}</p>
+          <p style={{ marginBottom: 8 }}>Nombre de dechets: {numberTrash}</p>
           <GridTable grid={grid} />
           {/* finish messages */}
           {discovered && <p style={{ color: "green" }}>Toute la grille a été découverte par les robots !</p>}
