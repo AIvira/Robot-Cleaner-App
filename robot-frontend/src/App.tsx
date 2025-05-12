@@ -5,7 +5,7 @@ import { fetchGrid, nextTurn, robotView, type Grid } from "./api";
 
 export default function App() {
   /** speed in auto mode ms */
-  const autoSpeed = 300; 
+  const autoSpeed = 100;
   const [grid, setGrid] = useState<Grid | null>(null);
   const [discovered, setDiscovered] = useState(false);
   const [cleaned, setCleaned] = useState(false);

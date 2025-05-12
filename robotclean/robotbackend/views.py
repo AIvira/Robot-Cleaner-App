@@ -11,7 +11,8 @@ VISION_RADIUS = 5
 GRID = [["0" for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 ROBOT_GRID = [["U" for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
-ROBOT_TARGETS = {} 
+ROBOT_TARGETS = {}
+ROBOT_STEPS_ON = {}
 
 ROBOT_VIEWING = False
 TRASH = (GRID_SIZE // 2, GRID_SIZE // 2)
@@ -109,15 +110,34 @@ class NextView(APIView):
             return Response({"grid": GRID, "discovered": self.mapDiscovered(), "cleaned": self.mapCleaned(), "num_it":NUM_TURN, "num_trash":NUM_TRASH_COLLECTED})
     
     def moveNext(self):
+        actual_trash = sum(row.count("D") + row.count("DL") for row in GRID)
+        robot_trash = sum(row.count("RDL") for row in GRID)
+        print("BEFORE on the map = " , actual_trash, "with robots on trash =", robot_trash)
         if self.mapDiscovered() and self.mapCleaned(): # game end
             return False
         self.updateRobotView()
+        self.relabel_orphan_locks()
         self.lockCloseTarget()
         self.exploreUnknown()
+        actual_trash = sum(row.count("D") + row.count("DL") for row in GRID)
+        robot_trash = sum(row.count("RDL") for row in GRID)
+        print("BEFORE MOVE on the map = " , actual_trash, "with robots on trash =", robot_trash)
         self.move()
         self.updateRobotView() # after move
+        actual_trash = sum(row.count("D") + row.count("DL") for row in GRID)
+        robot_trash = sum(row.count("RDL") for row in GRID)
+        print("On the map = " , actual_trash, "with robots on trash =", robot_trash)
         return True
-    
+
+    def relabel_orphan_locks(self):
+        busy = set(ROBOT_TARGETS.values())
+        for i in range(GRID_SIZE):
+            for j in range(GRID_SIZE):
+                if GRID[i][j] == "DL" and (i, j) not in busy:
+                    GRID[i][j] = "D"
+                    ROBOT_GRID[i][j] = "D"
+
+
     def updateRobotView(self):
         for i in range(GRID_SIZE):
             for j in range(GRID_SIZE):
@@ -136,7 +156,7 @@ class NextView(APIView):
         r_positions = []
 
         # Collect D and R positions
-        countAffected = 0
+        # countAffected = 0
         for i in range(GRID_SIZE):
             for j in range(GRID_SIZE):
                 # junk or junk + robot (loaded) on it
@@ -144,17 +164,11 @@ class NextView(APIView):
                     d_positions.append((i, j))
                 elif ROBOT_GRID[i][j] == "R":
                     r_positions.append((i, j))
-                elif ROBOT_GRID[i][j] == "RL" or ROBOT_GRID[i][j] == "RDL":
-                    countAffected = countAffected + 1
-        # security : be sure that there is at least one affectation when locked targets
-        if countAffected == 0:
-            for i in range(GRID_SIZE):
-                for j in range(GRID_SIZE):
-                    if ROBOT_GRID[i][j] == "DL":
-                        d_positions.append((i, j))
-                
 
+        assigned_trash = set()
         for d_i, d_j in d_positions:
+            if (d_i, d_j) in assigned_trash:
+                continue
             if not r_positions:
                 break  # no more robot
 
@@ -176,8 +190,10 @@ class NextView(APIView):
             ROBOT_TARGETS[(r_i, r_j)] = (d_i, d_j)  # store destination target of the robot
             # Supprimer le robot de la liste pour qu'il ne soit pas réutilisé
             r_positions.remove(closest_robot)
+            assigned_trash.add((d_i, d_j))
 
-    # If remaining robots, explore unknown
+
+            # If remaining robots, explore unknown
     def exploreUnknown(self):
         global GRID, ROBOT_GRID, ROBOT_TARGETS
         u_positions = []
@@ -220,48 +236,48 @@ class NextView(APIView):
 
     def move(self):
         # work on a grid copy
-        global GRID, NUM_TRASH_COLLECTED
+        global GRID, NUM_TRASH_COLLECTED, ROBOT_GRID, ROBOT_STEPS_ON
         global ROBOT_TARGETS
-        new_grid = copy.deepcopy(GRID)
-        new_targets = {} 
+        new_targets = {}
+        next_grid = copy.deepcopy(GRID)
         occupied = set()  # keep occupied targets
         left = set()  # keep of released targets (leaving)
 
         for (r_i, r_j), (d_i, d_j) in ROBOT_TARGETS.items():
-            # Vérifie que le robot est toujours présent
-            if GRID[r_i][r_j] not in ("R", "RL", "RDL"):
-                print("WARNING a Robot (", r_i, ",", r_j, ") should be here !")
-                continue
-
             # Calcul de direction vers la cible
             di = d_i - r_i
             dj = d_j - r_j
             step_i = r_i + (1 if di > 0 else -1 if di < 0 else 0)
             step_j = r_j + (1 if dj > 0 else -1 if dj < 0 else 0)
+
+            # Vérifie si la case est occupée par un robot ou déjà prise par un autre déplacement
+            if self.invalidMove(step_i, r_j, left, occupied):
+                step_i =  r_i
+            if self.invalidMove(r_i, step_j, left, occupied):
+                step_j =  r_j
             # destination ?
-            if GRID[d_i][d_j] == "Z" and GRID[step_i][step_j] == "Z" and (step_i == r_i or step_j == r_j):
+            if (GRID[d_i][d_j] == "Z"
+                    and GRID[step_i][step_j] == "Z"
+                    and (step_i == r_i
+                         or step_j == r_j)):
                 # heading to trash, reach the trash, get rid of content
-                new_grid[r_i][r_j] = "R"
+                next_grid[r_i][r_j] = "R"
                 NUM_TRASH_COLLECTED += 1
                 # to not add target, we have done yet
                 print("--> Robot drops junk to trash and is now available (", r_i, ",", r_j, ")")
                 continue
-            # Vérifie si la case est occupée par un robot ou déjà prise par un autre déplacement
-            if self.invalidMove(step_i, r_j, left, occupied):
-                step_i =  r_i 
-            if self.invalidMove(r_i, step_j, left, occupied):
-                step_j =  r_j
 
-            if step_i == r_i and step_j == r_j:
-                print("(occupîed) Robot (", r_i, ",", r_j, ") can not move : choose randomly an available move")
+            if step_i == r_i and step_j == r_j: # ROBOT dont move
+                print("(occupied) Robot (", r_i, ",", r_j, ") can not move : choose randomly an available move")
                 step_i, step_j = self.randomMoveUnblock(r_i, r_j, left, occupied)
                 
-                if step_i == r_i and step_j == r_j:
-                    new_targets[(r_i, r_j)] = (d_i, d_j) 
+                if step_i == r_i and step_j == r_j: # ROBOT dont move AGAIN
+                    new_targets[(r_i, r_j)] = (d_i, d_j) # Keep identical target : robot dosent move
                     print("(occupîed) Robot (", r_i, ",", r_j, ") can not move at all")
-                    continue # can not move at all
-            if step_i != r_i and step_j != r_j:
-                # if can move horizonal and vertical choose using the bigest distance to cover
+                    continue # can not move at all (almost impossible)
+
+            if step_i != r_i and step_j != r_j: # Both moves possible
+                # if we can move horizontal and vertical choose using the biggest distance to cover
                 if di > dj:
                     step_i = r_i
                 else:
@@ -269,44 +285,48 @@ class NextView(APIView):
 
             # update leaving cell
             if GRID[r_i][r_j] == "RDL":
-                new_grid[r_i][r_j] = "D"
+                next_grid[r_i][r_j] = ROBOT_STEPS_ON[(r_i, r_j)]
             else:
-                new_grid[r_i][r_j] = "0"
+                next_grid[r_i][r_j] = "0"
 
-            # move
-            if GRID[step_i][step_j] == "D":
-                new_grid[step_i][step_j] = "RDL" 
-            elif GRID[r_i][r_j] == "R":
-                new_grid[step_i][step_j] = "R" # unaffected
-            else:
-                new_grid[step_i][step_j] = "RL" 
-            # print("--> Robot moves (", r_i, ",", r_j, ") to (", step_i, ",", step_j, ")")
+            # claims next tile
+            if (GRID[step_i][step_j] == "D" or
+                    GRID[step_i][step_j] == "DL"):
+                ROBOT_STEPS_ON[(step_i, step_j)] = GRID[step_i][step_j]
+                next_grid[step_i][step_j] = "RDL"
+            elif not self.invalidMove(step_i, step_j, left, occupied):
+                next_grid[step_i][step_j] = "RL"
+            else: # Else if grid is invalid, we cant move on another robot so the grid remain unchanged
+                new_targets[(r_i, r_j)] = (d_i, d_j) # Keep identical target : robot dosent move
+                continue
+
             left.add((r_i, r_j))
             # Marque la case comme occupée
             occupied.add((step_i, step_j))
             ## update ROBOT_TARGETS
             # destination reached ?
             if step_i == d_i and step_j == d_j:
-                if GRID[d_i][d_j] == "0" or GRID[d_i][d_j] == "U" or GRID[d_i][d_j] == "UL":
+                if (GRID[d_i][d_j] == "0"
+                        or GRID[d_i][d_j] == "U"
+                        or GRID[d_i][d_j] == "UL"):
                     print("--> Robot reached unknown and is now available (", step_i, ",", step_j, ")")
-                    new_grid[step_i][step_j] = "R"
+                    next_grid[step_i][step_j] = "R"
                 else:
-                    print("--> Robot reach junk and heading to trash (", r_i, ",", r_j, ") : ",GRID[d_i][d_j])
-                    new_targets[(step_i, step_j)] = self.getTrash() 
-                    if new_grid[step_i][step_j] == "RDL":
-                        new_grid[step_i][step_j] = "RL"
+                    print("--> Robot reach junk and heading to trash (", r_i, ",", r_j, ") : ", GRID[d_i][d_j])
+                    new_targets[(step_i, step_j)] = self.getTrash()
+                    next_grid[step_i][step_j] = "RL"
             else:
                 new_targets[(step_i, step_j)] = (d_i, d_j)
 
         trash_pos_i, trash_pos_j = self.getTrash()
         # Restore the trash if pos has been freed
-        if (not new_grid[trash_pos_i][trash_pos_j] == 'R'
-                and not new_grid[trash_pos_i][trash_pos_j]=='RL'
-                and not new_grid[trash_pos_i][trash_pos_j]=='RDL'):
-            new_grid[trash_pos_i][trash_pos_j] = "Z"
+        if (not next_grid[trash_pos_i][trash_pos_j] == 'R'
+                and not next_grid[trash_pos_i][trash_pos_j]=='RL'
+                and not next_grid[trash_pos_i][trash_pos_j]=='RDL'):
+            next_grid[trash_pos_i][trash_pos_j] = "Z"
 
-        GRID = new_grid
         ROBOT_TARGETS = new_targets
+        GRID = next_grid
 
     def invalidMove(self, i, j, left, occupied):
         return ((i < 0)
